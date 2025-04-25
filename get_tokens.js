@@ -2,7 +2,7 @@
 import { Connection } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-const rpcEndpoint = "https://api.mainnet-beta.solana.com"; // Or your preferred RPC
+const rpcEndpoint = ""; // your preferred RPC
 const solanaConnection = new Connection(rpcEndpoint);
 
 async function getTokenAccounts(wallet) {
