@@ -172,3 +172,21 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# Node.js
+node_modules/
+dist/
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# OS/System
+.DS_Store
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
