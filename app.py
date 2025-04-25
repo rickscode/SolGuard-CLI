@@ -120,7 +120,10 @@ from typing import List, Dict
 from rich.console import Console
 from rich.table import Table
 import subprocess
+import json
+from dotenv import load_dotenv
 
+load_dotenv()
 console = Console()
 
 # RugScore API URL template
@@ -137,13 +140,17 @@ def fetch_tokens(wallet_address: str) -> List[Dict]:
     """Fetch SPL tokens from a Solana wallet via Node.js script"""
     try:
         print("Fetching tokens from wallet...")
-        result = subprocess.run(['ts-node', 'get_tokens.ts', wallet_address], capture_output=True, text=True)
+        result = subprocess.run(
+            ['npx', 'ts-node', 'get_tokens.ts', wallet_address],
+            capture_output=True,
+            text=True
+        )
         
         if result.returncode != 0:
             console.print(f"[red]Error fetching tokens from Node.js script:[/red] {result.stderr}")
             sys.exit(1)
         
-        return eval(result.stdout)  # Convert the output string into a list of tokens (make sure it's a valid format)
+        return json.loads(result.stdout)
     except Exception as e:
         console.print(f"[red]Error fetching tokens:[/red] {e}")
         sys.exit(1)
