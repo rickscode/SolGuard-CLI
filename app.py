@@ -1,3 +1,4 @@
+# solguard.py
 import requests
 import sys
 from typing import List, Dict
@@ -10,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 console = Console()
 
-# RugScore API URL template
 RUGSCORE_URL = "https://api.rugcheck.xyz/v1/tokens/{}/report/summary"
 
 HEADERS = {
@@ -18,12 +18,8 @@ HEADERS = {
     "User-Agent": "SolGuard/1.0"
 }
 
-print("Debug: Starting SolGuard...")
-
 def fetch_tokens(wallet_address: str) -> List[Dict]:
-    """Fetch SPL tokens from a Solana wallet via Node.js script"""
     try:
-        print("Fetching tokens from wallet...")
         result = subprocess.run(
             ['node', 'get_tokens.js', wallet_address],
             capture_output=True,
@@ -40,9 +36,7 @@ def fetch_tokens(wallet_address: str) -> List[Dict]:
         sys.exit(1)
 
 def check_token_rugscore(mint: str) -> Dict:
-    """Call RugScore API for a token"""
     try:
-        print(f"Checking token {mint} on RugScore...")
         url = RUGSCORE_URL.format(mint)
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
@@ -50,53 +44,83 @@ def check_token_rugscore(mint: str) -> Dict:
     except Exception as e:
         return {
             "mint": mint,
-            "score": "N/A",
-            "risk": "Unknown",
+            "score_normalised": "N/A",
+            "summary": { "risk": "Unknown" },
             "liquidity_usd": 0,
             "error": str(e)
         }
 
+# def print_report(token_data: List[Dict]):
+#     table = Table(title="SolGuard Token Risk Report", header_style="bold magenta")
+#     table.add_column("Symbol", justify="left")
+#     table.add_column("Risk", justify="center")
+#     table.add_column("Score", justify="center")
+#     table.add_column("Status", justify="left")
+
+#     for token in token_data:
+#         symbol = token.get("tokenSymbol", "???")
+#         rug = token.get("rugscore", {})
+
+#         risk = rug.get("risks.name", "Unknown")
+#         score = rug.get("score_normalised", "N/A")
+
+#         if isinstance(score, float):
+#             score = round(score)
+
+    
+
+#         if risk == "High":
+#             status = "[red]❌ High Risk[/red]"
+#         elif risk == "Medium":
+#             status = "[yellow]⚠️ Medium Risk[/yellow]"
+#         elif risk == "Low":
+#             status = "[green]✅ Safe[/green]"
+#         else:
+#             status = "[grey]❓ Unknown[/grey]"
+
+#         table.add_row(symbol, risk, str(score), status)
+
+#     console.print(table)
+
 def print_report(token_data: List[Dict]):
-    """Prints a CLI table of token risks"""
     table = Table(title="SolGuard Token Risk Report", header_style="bold magenta")
     table.add_column("Symbol", justify="left")
     table.add_column("Risk", justify="center")
     table.add_column("Score", justify="center")
-    table.add_column("Liquidity", justify="right")
     table.add_column("Status", justify="left")
 
     for token in token_data:
         symbol = token.get("tokenSymbol", "???")
-        mint = token.get("tokenAddress")
         rug = token.get("rugscore", {})
-
-        risk = rug.get("risk", "Unknown")
-        score = rug.get("score", "N/A")
-        liquidity = rug.get("liquidity_usd", 0)
+        risks = rug.get("risks", [])
+        score = rug.get("score_normalised", "N/A")
 
         if isinstance(score, float):
             score = round(score)
 
-        if liquidity is not None:
-            liquidity = f"${liquidity:,.0f}"
-        else:
-            liquidity = "$0"
-
-        if risk == "High" or rug.get("liquidity_usd", 0) == 0:
-            status = "[red]❌ High Risk[/red]"
-        elif risk == "Medium":
-            status = "[yellow]⚠️ Medium Risk[/yellow]"
-        elif risk == "Low":
+        # Handle multiple risks or no risks
+        if not risks:
+            risk_names = "No risks detected"
             status = "[green]✅ Safe[/green]"
         else:
-            status = "[grey]❓ Unknown[/grey]"
+            risk_names = "\n".join([risk.get("name", "Unknown risk") for risk in risks])
+            
+            # Use the first risk's level for status (or combine them if needed)
+            first_risk_level = risks[0].get("level", "unknown").lower()
+            if first_risk_level == "high":
+                status = "[red]❌ High Risk[/red]"
+            elif first_risk_level == "warn" or first_risk_level == "medium":
+                status = "[yellow]⚠️ Warning[/yellow]"
+            elif first_risk_level == "low":
+                status = "[green]✅ Safe[/green]"
+            else:
+                status = f"[grey]❓ {first_risk_level.capitalize()}[/grey]"
 
-        table.add_row(symbol, risk, str(score), liquidity, status)
+        table.add_row(symbol, risk_names, str(score), status)
 
     console.print(table)
 
 def main():
-    print("Debug: Inside main()...")
     console.print("[bold cyan]🛡️ SolGuard CLI v1[/bold cyan]")
     wallet = input("🔍 Enter your Solana wallet address: ").strip()
 
@@ -109,14 +133,15 @@ def main():
 
     token_report = []
 
-    for token in tokens:
-        mint = token.get("tokenAddress")
+    for idx, token in enumerate(tokens, start=1):
+        mint = token.get("mintAddress") or token.get("tokenAddress")
+        console.print(f"[grey]🔎 ({idx}/{len(tokens)}) Checking token: {mint}[/grey]")
         rugscore = check_token_rugscore(mint)
         token["rugscore"] = rugscore
         token_report.append(token)
 
+
     print_report(token_report)
 
 if __name__ == "__main__":
-    print("Debug: Starting the script...")
     main()

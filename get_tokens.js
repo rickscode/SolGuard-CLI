@@ -1,19 +1,18 @@
-// get_tokens.js
 import { Connection } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-const rpcEndpoint = ""; // your preferred RPC
+const rpcEndpoint = "";
 const solanaConnection = new Connection(rpcEndpoint);
 
 async function getTokenAccounts(wallet) {
   const filters = [
     {
-      dataSize: 165, // size of token account data
+      dataSize: 165,
     },
     {
       memcmp: {
-        offset: 32, // offset where wallet address starts
-        bytes: wallet, // wallet address (base58)
+        offset: 32,
+        bytes: wallet,
       },
     },
   ];
@@ -24,21 +23,20 @@ async function getTokenAccounts(wallet) {
   );
 
   const tokenInfo = accounts.map((account) => {
-    const parsedAccountInfo = account.account.data;
-    const mintAddress = parsedAccountInfo.parsed.info.mint;
-    const tokenBalance = parsedAccountInfo.parsed.info.tokenAmount.uiAmount;
+    const parsed = account.account.data.parsed;
+    const info = parsed.info;
 
     return {
       tokenAddress: account.pubkey.toString(),
-      mintAddress,
-      tokenBalance,
+      mintAddress: info.mint,
+      tokenSymbol: info.mint.slice(0, 6).toUpperCase(),
+      tokenBalance: info.tokenAmount.uiAmount,
     };
   });
 
   return tokenInfo;
 }
 
-// Read wallet from command line
 const wallet = process.argv[2];
 if (!wallet) {
   console.error("❌ Please provide a wallet address");
